@@ -1,441 +1,111 @@
-import { visitParents as unistVisit } from 'unist-util-visit-parents'
-import { visit as estreeVisit } from 'estree-util-visit'
-import { virtualFiles } from './virtual-files.js'
 import path from 'path'
-
-export const EXAMPLE_COMPONENT_PREFIX = 'AstroExample_'
+import fs from 'fs'
+import { visitParents as unistVisit } from 'unist-util-visit-parents'
+import { EXAMPLE_COMPONENT_PREFIX, virtualFiles, toPOSIX, getAttrs, ensureImport } from './helper'
 
 /**
- *
- * @param {import('./index.js').LiveCodeOptions} options
+ * @title 修改 markdown 节点
+ * @param {import('./index.js').PreviewOptions} options
  * @returns
  */
-export default function examples(options) {
+export default function remark(options) {
   return function transformer(tree, file) {
     let examples = []
 
-    unistVisit(tree, 'code', (node, parents) => {
-      const parent = parents[parents.length - 1]
-      const childIndex = parent.children.indexOf(node)
+    unistVisit(tree, 'mdxJsxFlowElement', (node, parents) => {
 
-      if (node.meta && node.meta.split(' ').includes('live')) {
-        const meta = node.meta
+      // 仅处理 <code src="..." /> 的元素
+      if (node.name === 'code') {
+        const { config, props } = getAttrs(node.attributes)
 
-        const src = node.value
-        const i = examples.length
+        if (config.src) {
+          // 基于 cwd 的绝对路径
+          const absolutePath = path.join(process.cwd(), config.src)
+          const content = fs.readFileSync(absolutePath, { encoding: 'utf8' })
+            .toString()
+            .replace(/\n/g, '\r\n')
 
-        const parentId = toPOSIX(
-          file.history[0].split(toPOSIX(process.cwd()))[1].slice(1),
-        )
-        const mdFilename = toPOSIX(
-          path.basename(parentId, path.extname(parentId)),
-        )
+          // eg: .tsx => tsx
+          const lang = path.extname(config.src).replace('.', '')
+          // eg: src/content/docs/index.mdx
+          const parentId = toPOSIX(file.history[0].split(toPOSIX(process.cwd()))[1].slice(1))
+          // eg: ${EXAMPLE_COMPONENT_PREFIX}_NO_0
+          const exampleComponentName = `${EXAMPLE_COMPONENT_PREFIX}_NO_${examples.length}`
+          // eg: src/content/docs/index-${EXAMPLE_COMPONENT_PREFIX}_0.tsx
+          const filename = toPOSIX(`${parentId.replace(path.extname(parentId), '')}-${exampleComponentName}.${lang}`,)
 
-        const exampleComponentName = EXAMPLE_COMPONENT_PREFIX + i
-        const filename = toPOSIX(
-          `${parentId.replace(
-            path.extname(parentId),
-            '',
-          )}-${exampleComponentName}.${node.lang}`,
-        )
-
-        const layout = toPOSIX(getLayoutPathFromMeta(meta) || options.layout)
-        const layoutName = layout === options.layout ? 'Example' : `Example${i}`
-
-        const wrapper = toPOSIX(getWrapperPathFromMeta(meta) || options.wrapper)
-        const wrapperFilename = wrapper
-          ? filename.replace(`.${node.lang}`, `.w.${node.lang}`)
-          : null
-
-        examples.push({ filename, src })
-        virtualFiles.set(filename, {
-          src,
-          parent: parentId,
-          updated: Date.now(),
-        })
-
-        if (wrapper) {
-          virtualFiles.set(wrapperFilename, {
-            src: createWrapperSrc({
-              lang: node.lang,
-              inner: filename,
-              outer: wrapper,
-            }),
+          examples.push({ filename, src: content })
+          virtualFiles.set(filename, {
+            src: content,
             parent: parentId,
             updated: Date.now(),
           })
-        }
 
-        ensureImport(tree, {
-          default: true,
-          name: exampleComponentName,
-          from: wrapper ? wrapperFilename : filename,
-        })
+          // 导入预览布局组件（可以是默认的options.layout；也可以是自定义attr.layout）
+          const layout = toPOSIX(config.layout || options.layout)
+          const layoutName = layout === options.layout ? 'Example' : `Example${i}`
+          ensureImport(tree, {
+            from: layout,
+            name: layoutName,
+            default: true,
+          })
 
-        ensureImport(tree, {
-          from: layout,
-          name: layoutName,
-          default: true,
-        })
+          // 导入预览组件（来源于 code 节点的 src 属性）
+          ensureImport(tree, {
+            from: absolutePath,
+            name: exampleComponentName,
+            default: true,
+          })
 
-        const codeNode = { ...node }
-
-        const props = {
-          ...(options?.defaultProps ?? {}),
-          ...parsePropsFromString(meta),
-        }
-
-        const commonPropAttributes = [
-          {
-            type: 'mdxJsxAttribute',
-            name: 'code',
-            value: node.value,
-          },
-          {
-            type: 'mdxJsxAttribute',
-            name: 'lang',
-            value: node.lang,
-          },
-          // filename of the markdown file
-          {
-            type: 'mdxJsxAttribute',
-            name: 'filename',
-            value: mdFilename,
-          },
-        ]
-
-        const componentPropAttributes = [
-          ...commonPropAttributes,
-          ...propsToJSXAttributes(props),
-        ]
-
-        const layoutPropAttributes = [
-          ...commonPropAttributes,
-          {
-            type: 'mdxJsxAttribute',
-            name: 'componentProps',
-            value: {
-              type: 'mdxJsxAttributeValueExpression',
-              data: {
-                estree: {
-                  type: 'Program',
-                  body: [
-                    {
-                      type: 'ExpressionStatement',
-                      expression: valueToEstreeExpression(
-                        // filter out client:xyz props
-                        Object.entries(props).reduce((acc, [key, value]) => {
-                          if (key.startsWith('client:')) {
-                            return acc
-                          }
-
-                          acc[key] = value
-
-                          return acc
-                        }, {}),
-                      ),
-                    },
-                  ],
-                  sourceType: 'module',
-                },
-              },
-            },
-          },
-        ]
-
-        node = {
-          type: 'mdxJsxFlowElement',
-          name: layoutName,
-          data: { _mdxExplicitJsx: true, _example: true },
-          attributes: layoutPropAttributes,
-          children: [
-            {
-              type: 'mdxJsxFlowElement',
-              name: 'slot',
-              data: { _mdxExplicitJsx: true },
-              attributes: [
-                {
-                  type: 'mdxJsxAttribute',
-                  name: 'slot',
-                  value: 'example',
-                },
-              ],
-              children: [
-                {
-                  type: 'mdxJsxFlowElement',
-                  name: exampleComponentName,
-                  attributes: componentPropAttributes,
-                  children: [],
-                },
-              ],
-            },
-            {
-              type: 'mdxJsxFlowElement',
-              name: 'slot',
-              data: { _mdxExplicitJsx: true },
-              attributes: [
-                {
-                  type: 'mdxJsxAttribute',
-                  name: 'slot',
-                  value: 'code',
-                },
-              ],
-              children: [codeNode],
-            },
-          ],
-        }
-
-        parent.children.splice(childIndex, 1, node)
-      }
-    })
-  }
-}
-
-function ensureImport(tree, imp) {
-  let importExists = false
-
-  unistVisit(tree, 'mdxjsEsm', (node) => {
-    estreeVisit(node.data.estree, (node) => {
-      if (node.type === 'ImportDeclaration') {
-        if (node.source.value === imp.from) {
-          if (
-            imp.default &&
-            node.specifiers.find((s) => s.local.name === imp.default)
-          ) {
-            importExists = true
-          }
-          if (
-            imp.name &&
-            node.specifiers.find((s) => s.imported.name === imp.name)
-          ) {
-            importExists = true
-          }
-        }
-      }
-    })
-  })
-
-  if (!importExists) {
-    tree.children.push({
-      type: 'mdxjsEsm',
-      data: {
-        estree: {
-          type: 'Program',
-          sourceType: 'module',
-          body: [
-            {
-              type: 'ImportDeclaration',
-              specifiers: [
-                {
-                  type: imp.default
-                    ? 'ImportDefaultSpecifier'
-                    : 'ImportSpecifier',
-                  imported: {
-                    type: 'Identifier',
-                    name: imp.name,
+          // 重新包装的新节点，外层是布局组件，children是通过插槽传递的预览组件和代码展示组件
+          // eg: <code layout="..." src="..." xxx="...">子节点</code>
+          // 注意：预览组件接受来自 code 节点的部分属性和所有子节点
+          const newNode = {
+            type: 'mdxJsxFlowElement',
+            name: layoutName,
+            data: { _mdxExplicitJsx: true, _example: true },
+            attributes: [
+              { type: 'mdxJsxAttribute', name: 'content', value: content },
+              { type: 'mdxJsxAttribute', name: 'exampleName', value: exampleComponentName },
+            ],
+            children: [
+              {
+                type: 'mdxJsxFlowElement',
+                name: 'slot',
+                data: { _mdxExplicitJsx: true },
+                attributes: [
+                  { type: 'mdxJsxAttribute', name: 'slot', value: 'example' },
+                ],
+                children: [
+                  {
+                    type: 'mdxJsxFlowElement',
+                    name: exampleComponentName,
+                    attributes: props,
+                    children: node.children,
                   },
-                  local: {
-                    type: 'Identifier',
-                    name: imp.name,
-                  },
-                },
-              ],
-              source: {
-                type: 'Literal',
-                value: imp.from,
+                ],
               },
-            },
-          ],
-        },
-      },
+              {
+                type: 'mdxJsxFlowElement',
+                name: 'slot',
+                data: { _mdxExplicitJsx: true },
+                attributes: [
+                  { type: 'mdxJsxAttribute', name: 'slot', value: 'code' },
+                ],
+                children: [
+                  { type: 'code', lang: lang, value: content }
+                ],
+              },
+            ],
+          }
+
+          const parent = parents[parents.length - 1]
+          const childIndex = parent.children.indexOf(node)
+          parent.children.splice(childIndex, 1, newNode)
+        }
+
+      }
+
     })
-  }
-}
-
-function propsToJSXAttributes(props) {
-  return Object.entries(props ?? {}).map(([key, value]) => {
-    const type = typeof value
-    const isArray = Array.isArray(value)
-
-    switch (type) {
-      case 'string':
-      case 'number':
-      case 'boolean':
-        return {
-          type: 'mdxJsxAttribute',
-          name: key,
-          value,
-        }
-      case 'object':
-        if (isArray) {
-          return {
-            type: 'mdxJsxAttribute',
-            name: key,
-            value: {
-              type: 'mdxJsxAttributeValueExpression',
-              data: {
-                estree: {
-                  type: 'Program',
-                  body: [
-                    {
-                      type: 'ExpressionStatement',
-                      expression: valueToEstreeExpression(value),
-                    },
-                  ],
-                  sourceType: 'module',
-                },
-              },
-            },
-          }
-        } else {
-          return {
-            type: 'mdxJsxAttribute',
-            name: key,
-            value: {
-              type: 'mdxJsxAttributeValueExpression',
-              data: {
-                estree: {
-                  type: 'Program',
-                  body: [
-                    {
-                      type: 'ExpressionStatement',
-                      expression: valueToEstreeExpression(value),
-                    },
-                  ],
-                  sourceType: 'module',
-                },
-              },
-            },
-          }
-        }
-      default:
-        throw new Error(`Unsupported prop type: ${type}`)
-    }
-  }, [])
-}
-
-function valueToEstreeExpression(value) {
-  const type = typeof value
-  const isArray = Array.isArray(value)
-
-  switch (type) {
-    case 'string':
-    case 'number':
-    case 'boolean':
-      return {
-        type: 'Literal',
-        value,
-      }
-    case 'object':
-      if (isArray) {
-        return {
-          type: 'ArrayExpression',
-          elements: value.map(valueToEstreeExpression),
-        }
-      } else {
-        return {
-          type: 'ObjectExpression',
-          properties: Object.entries(value).map(([key, value]) => {
-            return {
-              type: 'Property',
-              kind: 'init',
-              key: {
-                type: 'Identifier',
-                name: key,
-              },
-              value: valueToEstreeExpression(value),
-            }
-          }),
-        }
-      }
-  }
-}
-
-function parsePropsFromString(string) {
-  const regex = /props={{(.*?)}}/g
-  const matches = []
-  let match
-
-  while ((match = regex.exec(string)) !== null) {
-    matches.push(match[1])
-  }
-
-  // Check if a match is found
-  if (matches.length) {
-    // Use the Function constructor to create a function that returns the "props" object
-    const getProps = new Function(`return {${matches.join(' ')}}`)
-
-    // Call the function to get the parsed "props" object
-    const props = getProps()
-
-    return props
-  } else {
-    // Return null if no match is found
-    return null
-  }
-}
-
-function getLayoutPathFromMeta(meta) {
-  const part = meta.split(' ').find((part) => part.startsWith('layout='))
-
-  if (part) {
-    const layoutPath = part.split('=')[1]
-    return layoutPath.slice(1, layoutPath.length - 1)
-  }
-}
-
-function getWrapperPathFromMeta(meta) {
-  const part = meta.split(' ').find((part) => part.startsWith('wrapper='))
-
-  if (part) {
-    const wrapperPath = part.split('=')[1]
-    return wrapperPath.slice(1, wrapperPath.length - 1)
-  }
-}
-
-function toPOSIX(path) {
-  if (!path) return path
-
-  return path.replace(/\\/g, '/')
-}
-
-function createWrapperSrc({ lang, inner, outer }) {
-  switch (lang) {
-    case 'svelte':
-      return `\
-<script>
-    import Inner from ${JSON.stringify(inner)}
-    import Outer from ${JSON.stringify(outer)}
-</script>
-
-<Outer {...$$restProps}>    
-    <Inner {...$$restProps}/>
-</Outer>`
-    case 'jsx':
-      return `\
-import Inner from ${JSON.stringify(inner)}
-import Outer from ${JSON.stringify(outer)}
-
-export default (props) => <Outer {...props}><Inner {...props} /></Outer>`
-    case 'vue':
-      // TODO: verify, i just used copilot for this
-      return `\
-<script>
-import Inner from ${JSON.stringify(inner)}
-import Outer from ${JSON.stringify(outer)}
-
-export default {
-    components: {
-        Inner,
-        Outer
-    },
-    props: {
-        ...Outer.props,
-        ...Inner.props
-    },
-    render() {
-        return <Outer {...this.$props}><Inner /></Outer>
-    }    
-}`
   }
 }

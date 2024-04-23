@@ -1,1 +1,1 @@
-export { default as LiveCodeLayout } from './LiveCodeLayout.astro'
+export { default as PreviewLayout } from './PreviewLayout.astro'

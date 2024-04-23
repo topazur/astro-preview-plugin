@@ -1,0 +1,78 @@
+---
+title: Getting Started
+sidebar:
+  order: 0
+---
+
+## Installation
+
+```bash
+npm install @odinlin/astro-preview
+```
+
+## Config
+
+Add the following to your `astro.config.mjs` file:
+
+```js {2,7} title="astro.config.mjs"
+import { defineConfig } from 'astro/config'
+import preview from '@odinlin/astro-preview'
+
+export default defineConfig({
+  integrations: [
+    // ... other integrations
+    preview({
+      // layout: './src/MyLayout.astro',
+    }),
+  ],
+})
+```
+
+## Usage
+
+If the language is renderable by your
+Astro project (e.g. `react`, `vue`, etc.) it will be rendered as an
+imported component.
+
+### React case
+
+```md
+<code client:only="react" src="src/components/ReactDemo.tsx" propA="a" style={{ width:'100%' }}>
+  <span>子节点</span>
+</code>
+```
+
+`⬇️`
+
+<code client:only="react" src="src/components/ReactDemo.tsx" propA="a" style={{ width:'80%' }}>
+  <span>子节点</span>
+</code>
+
+### Vue case
+
+```md
+<code client:only="vue" src="src/components/VueDemo.vue" propA="a" style="width: 80%">
+  <span>子节点</span>
+</code>
+```
+
+`⬇️`
+
+<code client:only="vue" src="src/components/VueDemo.vue" propA="a" style="width: 80%">
+  <span>子节点</span>
+</code>
+
+## Notice
+
+```js
+<code layout="..." src="..." xxx="...">子节点</code>
+
+// 1. 基于 process.cwd() 的 attr.src 传递基于根目录的相对路径即可，无需别名，内部会生成完整的绝对路径
+const absolutePath = path.join(process.cwd(), config.src)
+
+// 2. 导入预览布局组件（可以是默认的options.layout；也可以是自定义attr.layout）
+
+// 3. 除了 layout 和 src 两个属性，其他属性会透传给 src 对应的组件
+
+// 4. 元素 code 的子节点也会透传给 src 对应的组件
+```

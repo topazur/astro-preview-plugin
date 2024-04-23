@@ -1,11 +1,11 @@
 {
-  "name": "astro-live-code",
+  "name": "@odinlin/astro-preview",
   "type": "module",
-  "version": "0.0.2",
+  "version": "0.0.1",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mattjennings/astro-live-code"
+    "url": "https://github.com/topazur/astro-preview-plugin.git"
   },
   "files": [
     "src/lib"
@@ -13,30 +13,31 @@
   "exports": {
     ".": "./src/lib/index.js",
     "./components": "./src/lib/components/index.js",
-    "./components/LiveCodeLayout.astro": "./src/lib/components/LiveCodeLayout.astro"
+    "./components/PreviewLayout.astro": "./src/lib/components/PreviewLayout.astro"
   },
-  "scripts": {
+   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
-    "build": "astro build",
+    "build": "astro check && astro build",
     "preview": "astro preview",
     "astro": "astro"
   },
   "dependencies": {
     "estree-util-visit": "^2.0.0",
-    "magic-string": "^0.30.5",
+    "magic-string": "^0.30.10",
     "unist-util-visit-parents": "^6.0.1"
   },
   "devDependencies": {
-    "@astrojs/preact": "^3.0.1",
-    "@astrojs/svelte": "^5.0.0",
-    "@astrojs/vue": "^4.0.2",
-    "svelte": "^4.2.8",
-    "@astrojs/starlight": "^0.15.0",
-    "astro": "^4.0.1",
-    "prettier": "^3.1.0",
-    "preact": "^10.6.5",
-    "vue": "^3.2.30",
-    "sharp": "^0.32.5"
+    "@astrojs/check": "^0.5.10",
+    "@astrojs/react": "^3.3.0",
+    "@astrojs/starlight": "^0.21.5",
+    "@astrojs/vue": "^4.1.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "astro": "^4.6.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "vue": "^3.4.24",
+    "typescript": "^5.4.5"
   }
 }

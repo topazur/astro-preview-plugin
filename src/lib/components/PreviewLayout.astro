@@ -1,0 +1,164 @@
+---
+const { exampleName, content } = Astro.props
+---
+
+<section id={exampleName} class="AstroPreviewCodeExample">
+  <div class="example-container">
+    <slot name="example" />
+  </div>
+  <div class="action-container">
+    <span class:list={['action-item open', [exampleName]]}>预览</span>
+    <span class:list={['action-item copy', [exampleName]]}>复制</span>
+  </div>
+  <div class="code-container">
+    <div class="code-wrapper">
+      <slot name="code" />
+      <textarea style="display: none;">{content}</textarea>
+    </div>
+    <div class="close-wrapper">
+      <span class:list={['action-item close', [exampleName]]}>收起</span>
+    </div>
+  </div>
+</section>
+
+<script>
+  document.body.addEventListener('click', (e) => {
+    const { nodeName, nodeType, classList } = (e.target || {}) as any
+
+    const matchElement = nodeName === 'SPAN' && nodeType === 1
+    if (!matchElement) {
+      return
+    }
+
+    const classNames = Array.from(classList) as string[]
+    const oPreview = classNames.find((item) => item.includes('AstroPreviewCodeExample_'))
+    const oActionItem = classNames.find((item) => item === 'action-item')
+    if (!(oPreview && oActionItem)) {
+      return
+    }
+
+    const oActionOpen = classNames.find((item) => item === 'open')
+    const oActionClose = classNames.find((item) => item === 'close')
+    const oActionCopy = classNames.find((item) => item === 'copy')
+
+    const oCodeContainer = document.querySelector(`#${oPreview} .code-container`)
+    if (oActionOpen) {
+      oCodeContainer?.setAttribute('style', 'display: block')
+      return
+    }
+    if (oActionClose) {
+      oCodeContainer?.setAttribute('style', 'display: none')
+      return
+    }
+    if (oActionCopy) {
+      const oTextarea = oCodeContainer?.querySelector('textarea')
+      if (!oTextarea?.defaultValue) {
+        return
+      }
+
+      const data = oTextarea.defaultValue.replace(/\n/g, '\r\n')
+      // 使用 Clipboard API 复制文本到剪贴板
+      window.navigator.clipboard
+        .writeText(data)
+        .then(() => {
+          // 复制成功后的处理
+          alert('文本已成功复制到剪贴板！')
+        })
+        .catch((error) => {
+          // 复制失败时的处理
+          console.error('复制文本失败:', error)
+        })
+    }
+  })
+</script>
+
+<style>
+  :root:not([data-theme='dark']) {
+    --code-box-color-bg: rgb(255, 255, 255);
+    --code-box-color-text: rgb(0, 0, 0);
+    --code-box-color-border: rgba(5, 5, 5, 0.1);
+    --code-box-color-code: rgb(240, 242, 245);
+  }
+
+  :root[data-theme='dark'] {
+    --code-box-color-bg: rgb(20, 20, 20);
+    --code-box-color-text: rgb(255, 255, 255);
+    --code-box-color-border: rgb(48, 48, 48);
+    --code-box-color-code: rgb(48, 48, 48, 0.8);
+  }
+
+  .AstroPreviewCodeExample {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    color: var(--code-box-color-text);
+    background-color: var(--code-box-color-bg);
+    border: 1px solid var(--code-box-color-border);
+    border-bottom: none;
+    border-radius: 4px;
+    box-shadow:
+      0 1px 2px 0 rgba(0, 0, 0, 0.03),
+      0 1px 6px -1px rgba(0, 0, 0, 0.02),
+      0 2px 4px 0 rgba(0, 0, 0, 0.02);
+  }
+
+  .action-item {
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 14px;
+    line-height: 1;
+    border-radius: 4px;
+  }
+
+  .action-item:hover {
+    background-color: var(--code-box-color-border);
+  }
+
+  .action-item + .action-item {
+    margin-left: 12px;
+  }
+
+  /* 预览区 */
+  .example-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2.5rem;
+  }
+
+  .action-container {
+    display: flex;
+    justify-content: center;
+    padding: 12px 0;
+    margin-top: 0;
+    border-top: 1px dashed var(--code-box-color-border);
+    border-bottom: 1px solid var(--code-box-color-border);
+  }
+
+  /* 代码区  */
+  .code-container {
+    --ec-brdCol: transparent;
+    display: none;
+  }
+
+  .code-container .code-wrapper {
+    border: 1px solid transparent;
+    transition: border-color 0.3s ease;
+  }
+  .code-container .code-wrapper:hover {
+    border-color: #1677ff;
+  }
+
+  .code-container .close-wrapper {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    display: flex;
+    justify-content: center;
+    padding: 12px 0;
+    margin-top: 0;
+    background-color: var(--code-box-color-bg);
+    border-top: 1px solid var(--code-box-color-border);
+    border-bottom: 1px solid var(--code-box-color-border);
+  }
+</style>

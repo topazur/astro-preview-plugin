@@ -1,12 +1,13 @@
 import MagicString from 'magic-string'
-import { virtualFiles } from './virtual-files.js'
+
+import { virtualFiles } from './helper'
 
 /**
  * @returns {import('vite').Plugin}
  */
-export default function liveCodeVitePlugin() {
+export default function ViteAstroPreviewPlugin() {
   return {
-    name: 'vite-live-code',
+    name: 'vite-astro-preview',
     resolveId(id) {
       if (virtualFiles.has(id)) {
         return id

@@ -1,12 +1,9 @@
 import { defineConfig } from 'astro/config'
 import starlight from '@astrojs/starlight'
-import liveCode from './src/lib/index.js'
-import path from 'path'
-import { fileURLToPath } from 'url'
-import svelte from '@astrojs/svelte'
-import preact from '@astrojs/preact'
+import react from '@astrojs/react'
 import vue from '@astrojs/vue'
-const __dirname = fileURLToPath(new URL('.', import.meta.url))
+
+import preview from './src/lib/index.js'
 
 // https://astro.build/config
 export default defineConfig({
@@ -14,7 +11,8 @@ export default defineConfig({
     resolve: {
       alias: [
         {
-          find: 'astro-live-code',
+          // 别名与包名相同的目的是，开发环境和安装依赖使用两种场景的依赖导入路径一致
+          find: '@odinlin/astro-preview',
           replacement: '/src/lib',
         },
       ],
@@ -22,11 +20,10 @@ export default defineConfig({
   },
   integrations: [
     starlight({
-      title: 'Astro Live Code',
+      title: 'Astro Preview',
       social: {
-        github: 'https://github.com/mattjennings/astro-live-code',
+        github: 'https://github.com/topazur/astro-preview-plugin.git',
       },
-
       tableOfContents: {
         minHeadingLevel: 1,
       },
@@ -39,9 +36,8 @@ export default defineConfig({
         },
       ],
     }),
-    liveCode({}),
-    svelte(),
-    preact(),
+    preview({}),
+    react(),
     vue(),
   ],
 })
