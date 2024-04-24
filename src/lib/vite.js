@@ -1,6 +1,6 @@
 import MagicString from 'magic-string'
 
-import { virtualFiles } from './helper'
+import { virtualFiles } from './helper.js'
 
 /**
  * @returns {import('vite').Plugin}

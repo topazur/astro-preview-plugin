@@ -4,6 +4,8 @@ Forked from [astro-live-code](https://github.com/mattjennings/astro-live-code) b
 
 ## Install
 
+[![npm](https://img.shields.io/npm/v/@odinlin/astro-preview?color=blue&label=npm)](https://www.npmjs.com/package/@odinlin/astro-preview)
+
 ```bash
 npm install @odinlin/astro-preview
 ```
@@ -35,4 +37,3 @@ export default defineConfig({
   <span>子节点</span>
 </code>
 ```
-

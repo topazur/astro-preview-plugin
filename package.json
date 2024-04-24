@@ -13,7 +13,8 @@
   "exports": {
     ".": "./src/lib/index.js",
     "./components": "./src/lib/components/index.js",
-    "./components/PreviewLayout.astro": "./src/lib/components/PreviewLayout.astro"
+    "./components/PreviewLayout.astro": "./src/lib/components/PreviewLayout.astro",
+    "./package.json": "./package.json"
   },
    "scripts": {
     "dev": "astro dev",

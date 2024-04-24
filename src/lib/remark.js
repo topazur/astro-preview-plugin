@@ -1,7 +1,7 @@
 import path from 'path'
 import fs from 'fs'
 import { visitParents as unistVisit } from 'unist-util-visit-parents'
-import { EXAMPLE_COMPONENT_PREFIX, virtualFiles, toPOSIX, getAttrs, ensureImport } from './helper'
+import { EXAMPLE_COMPONENT_PREFIX, virtualFiles, toPOSIX, getAttrs, ensureImport } from './helper.js'
 
 /**
  * @title 修改 markdown 节点
